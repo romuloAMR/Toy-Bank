@@ -25,6 +25,15 @@ def run_registration(store):
         print(f"Conta {acc} já existe. Saldo atual: {balance:.2f}")
 
 
+def show_balance(store):
+    acc = prompt_account_number()
+    bal = store.get_balance(acc)
+    if bal is None:
+        print(f"Conta {acc} não encontrada.")
+    else:
+        print(f"Saldo da conta {acc}: {bal:.2f}")
+
+
 class Menu:
     def __init__(self, title: str = None):
         self.title = title or ""
@@ -59,5 +68,6 @@ class Menu:
 def run_cli(store):
     menu = Menu("--- Toy-Bank ---")
     menu.add_option("1", "Criar conta", run_registration)
+    menu.add_option("2", "Consultar saldo", show_balance)
     menu.add_option("0", "Sair", lambda s: False)
     menu.run(store)
