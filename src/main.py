@@ -1,12 +1,15 @@
-
-from accounts import AccountStore
-from cli import run_cli
-
-
-def main():
-	store = AccountStore()
-	run_cli(store)
-
+from persistence.account_repository import AccountRepository
+from domain.bank_service import BankService
+from presentation.bank_cli import BankCLI, run_registration, show_balance
 
 if __name__ == "__main__":
-	main()
+    storage = AccountRepository()
+    
+    service = BankService(storage)
+    
+    cli = BankCLI("--- Toy-Bank CLI ---")
+    cli.add_option("1", "Criar Conta", run_registration)
+    cli.add_option("2", "Ver Saldo", show_balance)
+    cli.add_option("0", "Sair", lambda s: False)
+    
+    cli.run(service)
