@@ -61,6 +61,23 @@ def run_deposit(service: BankService):
     else:
         print(f"Erro: Conta {acc_id} não encontrada.")
 
+def run_withdrawal(service: BankService):
+    """
+    Call withdrawal service
+    """
+    acc_id = _prompt_account_number()
+    amount = _prompt_amount_number()
+    
+    if amount <= 0:
+        print("O valor do saque deve ser maior que zero.")
+        return
+
+    balance, success = service.make_withdrawal(acc_id, amount)
+    if success:
+        print(f"Saque realizado! Novo saldo da conta {acc_id}: R$ {balance:.2f}")
+    else:
+        print(f"Erro: Conta {acc_id} não encontrada.")
+
 class BankCLI:
     """
     Iterative menu for the Bank.

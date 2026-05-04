@@ -57,3 +57,15 @@ class AccountRepository:
         self._db.to_csv(self.FILE_PATH, index=False)
 
         return True
+
+    def withdrawal(self, id: int, amount: float) -> bool:
+        """
+        Withdraws money from the account.
+        """
+        if not self.account_exists(id):
+            return False
+
+        self._db.loc[self._db['account_id'] == id, 'balance'] -= amount
+        self._db.to_csv(self.FILE_PATH, index=False)
+
+        return True
