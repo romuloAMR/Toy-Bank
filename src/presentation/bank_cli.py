@@ -1,14 +1,26 @@
+from domain.bank_service import BankService
 from collections import OrderedDict
 
 def _prompt_account_number() -> int:
     """
-    Clear the text field
+    Clear the account field
     """
     while True:
         num = input("Digite o número da conta: ").strip()
         if num.isdigit():
             return int(num)
         print("Entrada inválida. Digite apenas números.")
+
+def _prompt_amount_number() -> float:
+    """
+    Clear the amount field
+    """
+    while True:
+        num = input("Digite o valor para operação: ").strip().replace(",",".")
+        try:
+            return float(num)
+        except ValueError:
+            print("Entrada inválida. Digite um valor numérico (ex: 100.50).")
 
 def run_registration(service):
     """
@@ -31,6 +43,23 @@ def show_balance(service):
         print(f"Saldo da conta {acc_id}: R$ {balance:.2f}")
     else:
         print(f"Conta {acc_id} não encontrada.")
+
+def run_deposit(service: BankService):
+    """
+    Call deposit service
+    """
+    acc_id = _prompt_account_number()
+    amount = _prompt_amount_number()
+    
+    if amount <= 0:
+        print("O valor do depósito deve ser maior que zero.")
+        return
+
+    balance, success = service.make_deposit(acc_id, amount)
+    if success:
+        print(f"Depósito realizado! Novo saldo da conta {acc_id}: R$ {balance:.2f}")
+    else:
+        print(f"Erro: Conta {acc_id} não encontrada.")
 
 class BankCLI:
     """

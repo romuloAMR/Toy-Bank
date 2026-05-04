@@ -16,8 +16,21 @@ class BankService:
         return False, balance
 
     def check_balance(self, account_id: int) -> tuple[float, bool]:
-        """Returns the balance of the specified account, if it exists."""
+        """
+        Returns the balance of the specified account, if it exists.
+        """
         balance = self.repository.get_balance(account_id)
         if balance == -float("inf"):
             return balance, False
         return balance, True
+    
+    def make_deposit(self, account_id: int, amount: float) -> tuple[float, bool]:
+        """
+        Make the deposit and refund the amount.
+        """
+        if amount <= 0:
+            return -float("inf"), False
+        sucess = self.repository.deposit(account_id, amount)
+        if sucess:
+            return self.repository.get_balance(account_id), sucess
+        return -float("inf"), sucess

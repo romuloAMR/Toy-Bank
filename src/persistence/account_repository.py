@@ -45,3 +45,15 @@ class AccountRepository:
         if len(balance) > 0:
             return float(balance[0])
         return -float("inf")
+    
+    def deposit(self, id: int, amount: float) -> bool:
+        """
+        Deposits the amount into the account.
+        """
+        if not self.account_exists(id):
+            return False
+
+        self._db.loc[self._db['account_id'] == id, 'balance'] += amount
+        self._db.to_csv(self.FILE_PATH, index=False)
+
+        return True
