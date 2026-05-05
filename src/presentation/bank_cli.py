@@ -78,6 +78,28 @@ def run_withdrawal(service: BankService):
     else:
         print(f"Erro: Conta {acc_id} não encontrada.")
 
+def run_transfer(service: BankService):
+    """
+    Call transfer service
+    """
+    print("Conta de origem:")
+    origin_id = _prompt_account_number()
+    print("Conta de destino:")
+    destination_id = _prompt_account_number()
+    amount = _prompt_amount_number()
+
+    if amount <= 0:
+        print("O valor da transferência deve ser maior que zero.")
+        return
+
+    origin_balance, destination_balance, success = service.make_transfer(origin_id, destination_id, amount)
+    if success:
+        print(f"Transferência realizada!")
+        print(f"Novo saldo da conta {origin_id}: R$ {origin_balance:.2f}")
+        print(f"Novo saldo da conta {destination_id}: R$ {destination_balance:.2f}")
+    else:
+        print("Erro: verifique se as contas existem e o valor é válido.")
+
 class BankCLI:
     """
     Iterative menu for the Bank.
