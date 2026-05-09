@@ -47,19 +47,23 @@ class BankService:
         return -float("inf"), sucess
 
     def make_transfer(self, origin_id: int, destination_id: int, amount: float) -> tuple[float, float, bool]:
-    """
-    Make a transfer from origin to destination and return both balances.
-    """
-    if amount <= 0:
-        return -float("inf"), -float("inf"), False
-    
-    _, origin_exists = self.check_balance(origin_id)
-    _, destination_exists = self.check_balance(destination_id)
-    
-    if not origin_exists or not destination_exists:
-        return -float("inf"), -float("inf"), False
-    
-    self.repository.withdrawal(origin_id, amount)
-    self.repository.deposit(destination_id, amount)
-    
-    return self.repository.get_balance(origin_id), self.repository.get_balance(destination_id), True
+        """
+        Make a transfer from origin to destination and return both balances.
+        """
+        if amount <= 0:
+            return -float("inf"), -float("inf"), False
+        
+        _, origin_exists = self.check_balance(origin_id)
+        _, destination_exists = self.check_balance(destination_id)
+        
+        if not origin_exists or not destination_exists:
+            return -float("inf"), -float("inf"), False
+        
+        withdraw_success = self.repository.withdrawal(origin_id, amount)
+
+        if not withdraw_success:
+            return -float("inf"), -float("inf"), False
+
+        self.repository.deposit(destination_id, amount)
+        
+        return self.repository.get_balance(origin_id), self.repository.get_balance(destination_id), True
