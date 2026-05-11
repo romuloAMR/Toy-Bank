@@ -65,6 +65,11 @@ class AccountRepository:
         if not self.account_exists(id):
             return False
 
+        current_balance = self.get_balance(id)
+
+        if amount > current_balance:
+            return False
+
         self._db.loc[self._db['account_id'] == id, 'balance'] -= amount
         self._db.to_csv(self.FILE_PATH, index=False)
 
