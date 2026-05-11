@@ -1,15 +1,18 @@
 from persistence.account_repository import AccountRepository
+from domain.account_types import DEFAULT_ACCOUNT_TYPE, SAVINGS_ACCOUNT_TYPE
 
 class BankService:
     def __init__(self, repository: AccountRepository):
         self.repository = repository
 
-    def register_account(self, account_id: int) -> tuple[bool, float]:
+    def register_account(
+        self, account_id: int, account_type: str = DEFAULT_ACCOUNT_TYPE
+    ) -> tuple[bool, float]:
         """
         Try to create an account with a balance of 0 and return whether it was successful or not, and the balance;
         if the account already exists, return the current balance.
         """
-        if self.repository.create_account(account_id):
+        if self.repository.create_account(account_id, account_type):
             return True, 0.0
 
         balance = self.repository.get_balance(account_id)
@@ -67,3 +70,19 @@ class BankService:
         self.repository.deposit(destination_id, amount)
         
         return self.repository.get_balance(origin_id), self.repository.get_balance(destination_id), True
+
+    def render_interest(self, interest_rate: float) -> tuple[int, bool]:
+        """
+        Applies interest to every savings account.
+        """
+        if interest_rate < 0:
+            return 0, False
+
+        updated_accounts = self.repository.apply_interest_to_savings_accounts(interest_rate)
+        return updated_accounts, True
+
+    def get_account_type(self, account_id: int) -> str | None:
+        """
+        Returns the registered account type.
+        """
+        return self.repository.get_account_type(account_id)
