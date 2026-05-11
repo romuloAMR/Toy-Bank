@@ -1,4 +1,5 @@
 from domain.bank_service import BankService
+from domain.account_types import ACCOUNT_TYPE_LABELS, DEFAULT_ACCOUNT_TYPE, SAVINGS_ACCOUNT_TYPE
 from collections import OrderedDict
 
 def _prompt_account_number() -> int:
@@ -22,16 +23,46 @@ def _prompt_amount_number() -> float:
         except ValueError:
             print("Entrada inválida. Digite um valor numérico (ex: 100.50).")
 
+def _prompt_interest_rate() -> float:
+    """
+    Clear the interest rate field
+    """
+    while True:
+        num = input("Digite a taxa de juros (%): ").strip().replace(",",".")
+        try:
+            return float(num)
+        except ValueError:
+            print("Entrada inválida. Digite uma taxa numérica (ex: 10.5).")
+
+def _prompt_account_type() -> str:
+    """
+    Ask the user which account type should be created.
+    """
+    while True:
+        print("Tipo da conta:")
+        print(f"1) {ACCOUNT_TYPE_LABELS[DEFAULT_ACCOUNT_TYPE]}")
+        print(f"2) {ACCOUNT_TYPE_LABELS[SAVINGS_ACCOUNT_TYPE]}")
+        choice = input("Escolha: ").strip()
+        if choice == "1":
+            return DEFAULT_ACCOUNT_TYPE
+        if choice == "2":
+            return SAVINGS_ACCOUNT_TYPE
+        print("Opção inválida.")
+
 def run_registration(service):
     """
     Call registration service
     """
     acc_id = _prompt_account_number()
-    success, balance = service.register_account(acc_id)
+    account_type = _prompt_account_type()
+    success, balance = service.register_account(acc_id, account_type)
     if success:
-        print(f"Conta {acc_id} criada com sucesso. Saldo: R$ {balance:.2f}")
+        account_label = ACCOUNT_TYPE_LABELS[account_type]
+        print(f"{account_label} {acc_id} criada com sucesso. Saldo: R$ {balance:.2f}")
     else:
-        print(f"Conta {acc_id} já existe. Saldo: R$ {balance:.2f}")
+        existing_type = service.get_account_type(acc_id) or DEFAULT_ACCOUNT_TYPE
+        account_label = ACCOUNT_TYPE_LABELS.get(existing_type, existing_type)
+        print(f"{account_label} {acc_id} já existe. Saldo: R$ {balance:.2f}")
 
 def show_balance(service):
     """
@@ -99,6 +130,24 @@ def run_transfer(service: BankService):
         print(f"Novo saldo da conta {destination_id}: R$ {destination_balance:.2f}")
     else:
         print("Erro: verifique se as contas existem e o valor é válido.")
+
+def run_render_interest(service: BankService):
+    """
+    Call render interest service
+    """
+    interest_rate = _prompt_interest_rate()
+
+    if interest_rate < 0:
+        print("A taxa de juros não pode ser negativa.")
+        return
+
+    updated_accounts, success = service.render_interest(interest_rate)
+    if success:
+        print(
+            f"Rendimento aplicado com sucesso em {updated_accounts} conta(s) poupança."
+        )
+    else:
+        print("Erro ao aplicar rendimento.")
 
 class BankCLI:
     """
