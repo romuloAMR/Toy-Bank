@@ -1,0 +1,7 @@
+DEFAULT_ACCOUNT_TYPE = "simple"
+SAVINGS_ACCOUNT_TYPE = "savings"
+
+ACCOUNT_TYPE_LABELS = {
+    DEFAULT_ACCOUNT_TYPE: "Conta Simples",
+    SAVINGS_ACCOUNT_TYPE: "Conta Poupança",
+}
