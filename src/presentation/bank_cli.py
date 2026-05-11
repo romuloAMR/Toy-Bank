@@ -1,5 +1,10 @@
 from domain.bank_service import BankService
-from domain.account_types import ACCOUNT_TYPE_LABELS, DEFAULT_ACCOUNT_TYPE, SAVINGS_ACCOUNT_TYPE
+from domain.account_types import (
+    ACCOUNT_TYPE_LABELS,
+    BONUS_ACCOUNT_TYPE,
+    DEFAULT_ACCOUNT_TYPE,
+    SAVINGS_ACCOUNT_TYPE,
+)
 from collections import OrderedDict
 
 def _prompt_account_number() -> int:
@@ -42,11 +47,14 @@ def _prompt_account_type() -> str:
         print("Tipo da conta:")
         print(f"1) {ACCOUNT_TYPE_LABELS[DEFAULT_ACCOUNT_TYPE]}")
         print(f"2) {ACCOUNT_TYPE_LABELS[SAVINGS_ACCOUNT_TYPE]}")
+        print(f"3) {ACCOUNT_TYPE_LABELS[BONUS_ACCOUNT_TYPE]}")
         choice = input("Escolha: ").strip()
         if choice == "1":
             return DEFAULT_ACCOUNT_TYPE
         if choice == "2":
             return SAVINGS_ACCOUNT_TYPE
+        if choice == "3":
+            return BONUS_ACCOUNT_TYPE
         print("Opção inválida.")
 
 def run_registration(service):
@@ -72,6 +80,9 @@ def show_balance(service):
     balance, exists = service.check_balance(acc_id)
     if exists:
         print(f"Saldo da conta {acc_id}: R$ {balance:.2f}")
+        if service.get_account_type(acc_id) == BONUS_ACCOUNT_TYPE:
+            points = service.get_points(acc_id) or 0
+            print(f"Pontuação bônus atual: {points} ponto(s)")
     else:
         print(f"Conta {acc_id} não encontrada.")
 
@@ -86,9 +97,11 @@ def run_deposit(service: BankService):
         print("O valor do depósito deve ser maior que zero.")
         return
 
-    balance, success = service.make_deposit(acc_id, amount)
+    balance, earned_points, success = service.make_deposit(acc_id, amount)
     if success:
         print(f"Depósito realizado! Novo saldo da conta {acc_id}: R$ {balance:.2f}")
+        if earned_points > 0:
+            print(f"Pontos bônus dessa operação: {earned_points} ponto(s)")
     else:
         print(f"Erro: Conta {acc_id} não encontrada.")
 
@@ -123,11 +136,17 @@ def run_transfer(service: BankService):
         print("O valor da transferência deve ser maior que zero.")
         return
 
-    origin_balance, destination_balance, success = service.make_transfer(origin_id, destination_id, amount)
+    origin_balance, destination_balance, earned_points, success = service.make_transfer(
+        origin_id, destination_id, amount
+    )
     if success:
         print(f"Transferência realizada!")
         print(f"Novo saldo da conta {origin_id}: R$ {origin_balance:.2f}")
         print(f"Novo saldo da conta {destination_id}: R$ {destination_balance:.2f}")
+        if earned_points > 0:
+            print(
+                f"Pontos bônus da conta {destination_id} nessa operação: {earned_points} ponto(s)"
+            )
     else:
         print("Erro: verifique se as contas existem e o valor é válido.")
 

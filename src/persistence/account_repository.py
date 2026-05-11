@@ -1,6 +1,11 @@
 import pandas as pd
 import os
-from domain.account_types import DEFAULT_ACCOUNT_TYPE, SAVINGS_ACCOUNT_TYPE
+from domain.account_types import (
+    BONUS_ACCOUNT_INITIAL_POINTS,
+    BONUS_ACCOUNT_TYPE,
+    DEFAULT_ACCOUNT_TYPE,
+    SAVINGS_ACCOUNT_TYPE,
+)
 
 
 class AccountRepository:
@@ -12,7 +17,7 @@ class AccountRepository:
         if os.path.exists(self.FILE_PATH):
             self._db = pd.read_csv(self.FILE_PATH)
         else:
-            db = pd.DataFrame(columns=["account_id", "balance", "account_type"])
+            db = pd.DataFrame(columns=["account_id", "balance", "account_type", "points"])
             directory = os.path.dirname(self.FILE_PATH)
             if directory:
                 os.makedirs(directory, exist_ok=True)
@@ -22,11 +27,17 @@ class AccountRepository:
 
         if "account_type" not in self._db.columns:
             self._db["account_type"] = DEFAULT_ACCOUNT_TYPE
+
+        if "points" not in self._db.columns:
+            self._db["points"] = 0
+            bonus_accounts = self._db["account_type"] == BONUS_ACCOUNT_TYPE
+            self._db.loc[bonus_accounts, "points"] = BONUS_ACCOUNT_INITIAL_POINTS
             self._db.to_csv(self.FILE_PATH, index=False)
 
         self._db['account_id'] = self._db['account_id'].astype(int)
         self._db['balance'] = self._db['balance'].astype(float)
         self._db["account_type"] = self._db["account_type"].fillna(DEFAULT_ACCOUNT_TYPE).astype(str)
+        self._db["points"] = self._db["points"].fillna(0).astype(int)
 
     def account_exists(self, id: int) -> bool:
         """
@@ -40,9 +51,10 @@ class AccountRepository:
         """
         if self.account_exists(id):
             return False
-            
+
+        points = BONUS_ACCOUNT_INITIAL_POINTS if account_type == BONUS_ACCOUNT_TYPE else 0
         new_registration = pd.DataFrame(
-            [{"account_id": id, "balance": 0.0, "account_type": account_type}]
+            [{"account_id": id, "balance": 0.0, "account_type": account_type, "points": points}]
         )
         self._db = pd.concat([self._db, new_registration], ignore_index=True)
         self._db.to_csv(self.FILE_PATH, index=False)
@@ -110,3 +122,23 @@ class AccountRepository:
         self._db.to_csv(self.FILE_PATH, index=False)
 
         return updated_accounts
+
+    def get_points(self, id: int) -> int | None:
+        """
+        Returns the points of an account.
+        """
+        points = self._db.loc[self._db["account_id"] == id, "points"].values
+        if len(points) > 0:
+            return int(points[0])
+        return None
+
+    def add_points(self, id: int, points: int) -> bool:
+        """
+        Adds points to an account.
+        """
+        if not self.account_exists(id):
+            return False
+
+        self._db.loc[self._db["account_id"] == id, "points"] += points
+        self._db.to_csv(self.FILE_PATH, index=False)
+        return True

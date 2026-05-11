@@ -1,5 +1,5 @@
 from persistence.account_repository import AccountRepository
-from domain.account_types import DEFAULT_ACCOUNT_TYPE, SAVINGS_ACCOUNT_TYPE
+from domain.account_types import BONUS_ACCOUNT_TYPE, DEFAULT_ACCOUNT_TYPE
 
 class BankService:
     def __init__(self, repository: AccountRepository):
@@ -27,16 +27,17 @@ class BankService:
             return balance, False
         return balance, True
     
-    def make_deposit(self, account_id: int, amount: float) -> tuple[float, bool]:
+    def make_deposit(self, account_id: int, amount: float) -> tuple[float, int, bool]:
         """
         Make the deposit and refund the amount.
         """
         if amount <= 0:
-            return -float("inf"), False
+            return -float("inf"), 0, False
         sucess = self.repository.deposit(account_id, amount)
         if sucess:
-            return self.repository.get_balance(account_id), sucess
-        return -float("inf"), sucess
+            earned_points = self._award_bonus_points_for_deposit(account_id, amount)
+            return self.repository.get_balance(account_id), earned_points, sucess
+        return -float("inf"), 0, sucess
     
     def make_withdrawal(self, account_id: int, amount: float) -> tuple[float, bool]:
         """
@@ -49,27 +50,37 @@ class BankService:
             return self.repository.get_balance(account_id), sucess
         return -float("inf"), sucess
 
-    def make_transfer(self, origin_id: int, destination_id: int, amount: float) -> tuple[float, float, bool]:
+    def make_transfer(
+        self, origin_id: int, destination_id: int, amount: float
+    ) -> tuple[float, float, int, bool]:
         """
         Make a transfer from origin to destination and return both balances.
         """
         if amount <= 0:
-            return -float("inf"), -float("inf"), False
+            return -float("inf"), -float("inf"), 0, False
         
         _, origin_exists = self.check_balance(origin_id)
         _, destination_exists = self.check_balance(destination_id)
         
         if not origin_exists or not destination_exists:
-            return -float("inf"), -float("inf"), False
+            return -float("inf"), -float("inf"), 0, False
         
         withdraw_success = self.repository.withdrawal(origin_id, amount)
 
         if not withdraw_success:
-            return -float("inf"), -float("inf"), False
+            return -float("inf"), -float("inf"), 0, False
 
         self.repository.deposit(destination_id, amount)
+        earned_points = self._award_bonus_points_for_received_transfer(
+            destination_id, amount
+        )
         
-        return self.repository.get_balance(origin_id), self.repository.get_balance(destination_id), True
+        return (
+            self.repository.get_balance(origin_id),
+            self.repository.get_balance(destination_id),
+            earned_points,
+            True,
+        )
 
     def render_interest(self, interest_rate: float) -> tuple[int, bool]:
         """
@@ -86,3 +97,37 @@ class BankService:
         Returns the registered account type.
         """
         return self.repository.get_account_type(account_id)
+
+    def get_points(self, account_id: int) -> int | None:
+        """
+        Returns the registered account points.
+        """
+        return self.repository.get_points(account_id)
+
+    def _award_bonus_points_for_deposit(self, account_id: int, amount: float) -> int:
+        """
+        Awards bonus account points for deposits.
+        """
+        account_type = self.repository.get_account_type(account_id)
+        if account_type != BONUS_ACCOUNT_TYPE:
+            return 0
+
+        points = int(amount // 100)
+        if points > 0:
+            self.repository.add_points(account_id, points)
+        return points
+
+    def _award_bonus_points_for_received_transfer(
+        self, account_id: int, amount: float
+    ) -> int:
+        """
+        Awards bonus account points for received transfers.
+        """
+        account_type = self.repository.get_account_type(account_id)
+        if account_type != BONUS_ACCOUNT_TYPE:
+            return 0
+
+        points = int(amount // 200)
+        if points > 0:
+            self.repository.add_points(account_id, points)
+        return points
