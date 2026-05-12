@@ -1,0 +1,20 @@
+[project]
+name = "toy-bank"
+version = "0.1.0"
+description = "A simple toy project for practising GitLab Flow and CI/CD"
+authors = [
+    { name = "Rômulo Alves de Morais Rocha", email = "amr.rmulo@gmail.com" },
+    { name = "Dinorah Farias", email = "dinorahfarias@outlook.com" },
+    { name = "Rodrigo Faustino", email = "" }
+]
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "pandas>=3.0.2",
+    "pydantic>=2.13.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
