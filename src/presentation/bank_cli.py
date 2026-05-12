@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 from domain.bank_service import BankService
 from domain.account_types import (
     ACCOUNT_TYPE_LABELS,
@@ -5,205 +7,266 @@ from domain.account_types import (
     DEFAULT_ACCOUNT_TYPE,
     SAVINGS_ACCOUNT_TYPE,
 )
-from collections import OrderedDict
+
 
 def _prompt_account_number() -> int:
     """
-    Clear the account field
+    Read and validate account number input.
     """
     while True:
         num = input("Digite o número da conta: ").strip()
+
         if num.isdigit():
             return int(num)
+
         print("Entrada inválida. Digite apenas números.")
+
 
 def _prompt_amount_number() -> float:
     """
-    Clear the amount field
+    Read and validate amount input.
     """
     while True:
-        num = input("Digite o valor para operação: ").strip().replace(",",".")
+        num = input("Digite o valor da operação: ").strip().replace(",", ".")
+
         try:
             return float(num)
+
         except ValueError:
-            print("Entrada inválida. Digite um valor numérico (ex: 100.50).")
+            print(
+                "Entrada inválida. "
+                "Digite um valor numérico."
+            )
+
 
 def _prompt_interest_rate() -> float:
     """
-    Clear the interest rate field
+    Read and validate interest rate.
     """
     while True:
-        num = input("Digite a taxa de juros (%): ").strip().replace(",",".")
+        num = input("Digite a taxa de juros (%): ").strip().replace(",", ".")
+
         try:
             return float(num)
+
         except ValueError:
-            print("Entrada inválida. Digite uma taxa numérica (ex: 10.5).")
+            print(
+                "Entrada inválida. "
+                "Digite um valor numérico."
+            )
+
 
 def _prompt_account_type() -> str:
     """
-    Ask the user which account type should be created.
+    Ask which account type should be created.
     """
     while True:
-        print("Tipo da conta:")
+        print("\nTipo da conta:")
         print(f"1) {ACCOUNT_TYPE_LABELS[DEFAULT_ACCOUNT_TYPE]}")
         print(f"2) {ACCOUNT_TYPE_LABELS[SAVINGS_ACCOUNT_TYPE]}")
         print(f"3) {ACCOUNT_TYPE_LABELS[BONUS_ACCOUNT_TYPE]}")
+
         choice = input("Escolha: ").strip()
+
         if choice == "1":
             return DEFAULT_ACCOUNT_TYPE
+
         if choice == "2":
             return SAVINGS_ACCOUNT_TYPE
+
         if choice == "3":
             return BONUS_ACCOUNT_TYPE
+
         print("Opção inválida.")
 
-def run_registration(service):
-    """
-    Call registration service
-    """
-    acc_id = _prompt_account_number()
-    account_type = _prompt_account_type()
-    success, balance = service.register_account(acc_id, account_type)
-    if success:
-        account_label = ACCOUNT_TYPE_LABELS[account_type]
-        print(f"{account_label} {acc_id} criada com sucesso. Saldo: R$ {balance:.2f}")
-    else:
-        existing_type = service.get_account_type(acc_id) or DEFAULT_ACCOUNT_TYPE
-        account_label = ACCOUNT_TYPE_LABELS.get(existing_type, existing_type)
-        print(f"{account_label} {acc_id} já existe. Saldo: R$ {balance:.2f}")
 
-def show_balance(service):
+def run_registration(service: BankService):
     """
-    Call balance service
+    Create account flow.
     """
-    acc_id = _prompt_account_number()
-    balance, exists = service.check_balance(acc_id)
-    if exists:
-        print(f"Saldo da conta {acc_id}: R$ {balance:.2f}")
-        if service.get_account_type(acc_id) == BONUS_ACCOUNT_TYPE:
-            points = service.get_points(acc_id) or 0
-            print(f"Pontuação bônus atual: {points} ponto(s)")
+    account_id = _prompt_account_number()
+    account_type = _prompt_account_type()
+
+    balance, success = service.register_account(account_id, account_type)
+    account_label = ACCOUNT_TYPE_LABELS[account_type]
+
+    if success:
+        print(
+            f"{account_label} {account_id} criada com sucesso. "
+            f"Saldo: R$ {balance:.2f}"
+        )
+
     else:
-        print(f"Conta {acc_id} não encontrada.")
+        print(
+            f"Conta {account_id} já existe. "
+            f"Saldo atual: R$ {balance:.2f}"
+        )
+
+
+def show_balance(service: BankService):
+    """
+    Balance flow.
+    """
+    account_id = _prompt_account_number()
+
+    balance, exists = service.check_balance(account_id)
+
+    if not exists:
+        print("Conta não encontrada.")
+        return
+
+    print(
+        f"Saldo da conta {account_id}: "
+        f"R$ {balance:.2f}"
+    )
+
+    account_type = service.get_account_type(account_id)
+
+    if account_type == BONUS_ACCOUNT_TYPE:
+        points = service.get_points(account_id) or 0
+
+        print(
+            f"Pontos bônus: {points}"
+        )
+
 
 def run_deposit(service: BankService):
     """
-    Call deposit service
+    Deposit flow.
     """
-    acc_id = _prompt_account_number()
+    account_id = _prompt_account_number()
     amount = _prompt_amount_number()
-    
-    if amount <= 0:
-        print("O valor do depósito deve ser maior que zero.")
-        return
 
-    balance, earned_points, success = service.make_deposit(acc_id, amount)
-    if success:
-        print(f"Depósito realizado! Novo saldo da conta {acc_id}: R$ {balance:.2f}")
-        if earned_points > 0:
-            print(f"Pontos bônus dessa operação: {earned_points} ponto(s)")
-    else:
-        print(f"Erro: Conta {acc_id} não encontrada.")
+    balance, msg = service.make_deposit(
+        account_id,
+        amount,
+    )
+
+    if balance is not None:
+        print(
+            f"Depósito realizado com sucesso!\n"
+            f"Novo saldo: R$ {balance:.2f}"
+        )
+
+    print(msg)
+
 
 def run_withdrawal(service: BankService):
     """
-    Call withdrawal service
+    Withdrawal flow.
     """
-    acc_id = _prompt_account_number()
+    account_id = _prompt_account_number()
     amount = _prompt_amount_number()
-    
-    if amount <= 0:
-        print("O valor do saque deve ser maior que zero.")
-        return
 
-    balance, success = service.make_withdrawal(acc_id, amount)
-    if success:
-        print(f"Saque realizado! Novo saldo da conta {acc_id}: R$ {balance:.2f}")
+    balance, msg = service.make_withdrawal(
+        account_id,
+        amount,
+    )
+
+    if balance is not None:
+        print(
+            f"Saque realizado com sucesso!\n"
+            f"Novo saldo: R$ {balance:.2f}"
+        )
+
     else:
-        print(f"Erro: Conta {acc_id} não encontrada.")
+        print(msg)
+
 
 def run_transfer(service: BankService):
     """
-    Call transfer service
+    Transfer flow.
     """
     print("Conta de origem:")
     origin_id = _prompt_account_number()
+
     print("Conta de destino:")
     destination_id = _prompt_account_number()
+
     amount = _prompt_amount_number()
 
-    if amount <= 0:
-        print("O valor da transferência deve ser maior que zero.")
-        return
+    origin_balance, destination_balance, msg = service.make_transfer(origin_id, destination_id, amount)
 
-    origin_balance, destination_balance, earned_points, success = service.make_transfer(
-        origin_id, destination_id, amount
-    )
-    if success:
-        print(f"Transferência realizada!")
-        print(f"Novo saldo da conta {origin_id}: R$ {origin_balance:.2f}")
-        print(f"Novo saldo da conta {destination_id}: R$ {destination_balance:.2f}")
-        if earned_points > 0:
-            print(
-                f"Pontos bônus da conta {destination_id} nessa operação: {earned_points} ponto(s)"
-            )
-    else:
-        print("Erro: verifique se as contas existem e o valor é válido.")
+    if (
+        origin_balance is not None
+        and destination_balance is not None
+    ):
+        print("\nTransferência realizada!")
+        print(
+            f"Novo saldo origem ({origin_id}): "
+            f"R$ {origin_balance:.2f}"
+        )
+        print(
+            f"Novo saldo destino ({destination_id}): "
+            f"R$ {destination_balance:.2f}"
+        )
+
+    print(msg)
+
 
 def run_render_interest(service: BankService):
     """
-    Call render interest service
+    Interest rendering flow.
     """
     interest_rate = _prompt_interest_rate()
 
-    if interest_rate < 0:
-        print("A taxa de juros não pode ser negativa.")
-        return
+    updated_accounts, msg = service.render_interest(interest_rate)
 
-    updated_accounts, success = service.render_interest(interest_rate)
-    if success:
+    if updated_accounts > 0:
         print(
-            f"Rendimento aplicado com sucesso em {updated_accounts} conta(s) poupança."
+            f"Rendimento aplicado em "
+            f"{updated_accounts} conta(s)."
         )
-    else:
-        print("Erro ao aplicar rendimento.")
+
+    print(msg)
+
 
 class BankCLI:
     """
-    Iterative menu for the Bank.
+    Iterative terminal menu.
     """
+
     def __init__(self, title: str):
-        """
-        Init Bank CLI
-        """
         self.title = title
         self._options = OrderedDict()
 
-    def add_option(self, key, label, handler):
+    def add_option(self, key: str, label: str, handler):
         """
-        Add new services to the bank
+        Register menu option.
         """
-        self._options[str(key)] = (label, handler)
+        self._options[str(key)] = (
+            label,
+            handler,
+        )
 
-    def run(self, service):
+    def run(self, service: BankService):
         """
-        Main loop
+        Main application loop.
         """
         try:
             while True:
                 print(f"\n{self.title}")
-                for k, (label, _) in self._options.items():
-                    print(f"{k}) {label}")
 
-                choice = input("Escolha: ").strip()
-                if choice in self._options:
-                    _, handler = self._options[choice]
-                    if handler(service) is False:
-                        break
-                else:
+                for key, (label, _) in self._options.items():
+                    print(f"{key}) {label}")
+
+                choice = input(
+                    "Escolha uma opção: "
+                ).strip()
+
+                if choice not in self._options:
                     print("Opção inválida.")
+                    continue
+
+                _, handler = self._options[choice]
+
+                should_continue = handler(service)
+
+                if should_continue is False:
+                    break
+
         except KeyboardInterrupt:
-            print("\n\nSaindo do sistema... Até logo!")
+            print("\n\nSaindo do sistema...")
 
         except EOFError:
-            print("\nConexão encerrada. Saindo...")
+            print("\nConexão encerrada.")

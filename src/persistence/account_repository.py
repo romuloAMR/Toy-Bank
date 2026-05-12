@@ -1,5 +1,6 @@
+from pathlib import Path
 import pandas as pd
-import os
+
 from domain.account_types import (
     BONUS_ACCOUNT_INITIAL_POINTS,
     BONUS_ACCOUNT_TYPE,
@@ -13,99 +14,114 @@ class AccountRepository:
         """
         Initialise CSV database for accounts
         """
-        self.FILE_PATH = file_path
-        if os.path.exists(self.FILE_PATH):
-            self._db = pd.read_csv(self.FILE_PATH)
-        else:
-            db = pd.DataFrame(columns=["account_id", "balance", "account_type", "points"])
-            directory = os.path.dirname(self.FILE_PATH)
-            if directory:
-                os.makedirs(directory, exist_ok=True)
-            db.to_csv(self.FILE_PATH, index=False)
-            self._db = pd.read_csv(self.FILE_PATH)
-            print("Account table create with sucess!")
+        self._file_path = Path(file_path)
 
-        if "account_type" not in self._db.columns:
-            self._db["account_type"] = DEFAULT_ACCOUNT_TYPE
+        if not self._file_path.exists():
+            self._file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        if "points" not in self._db.columns:
-            self._db["points"] = 0
-            bonus_accounts = self._db["account_type"] == BONUS_ACCOUNT_TYPE
-            self._db.loc[bonus_accounts, "points"] = BONUS_ACCOUNT_INITIAL_POINTS
-            self._db.to_csv(self.FILE_PATH, index=False)
+            db = pd.DataFrame({
+                "account_id": pd.Series(dtype="int64"),
+                "balance": pd.Series(dtype="float64"),
+                "account_type": pd.Series(dtype="str"),
+                "points": pd.Series(dtype="int64"),
+            })
 
-        self._db['account_id'] = self._db['account_id'].astype(int)
-        self._db['balance'] = self._db['balance'].astype(float)
-        self._db["account_type"] = self._db["account_type"].fillna(DEFAULT_ACCOUNT_TYPE).astype(str)
-        self._db["points"] = self._db["points"].fillna(0).astype(int)
+            db.to_csv(self._file_path, index=False)
 
-    def account_exists(self, id: int) -> bool:
+        self._db = pd.read_csv(self._file_path)
+
+        if self._db.empty:
+            self._db = pd.DataFrame({
+                "account_id": pd.Series(dtype="int64"),
+                "balance": pd.Series(dtype="float64"),
+                "account_type": pd.Series(dtype="str"),
+                "points": pd.Series(dtype="int64"),
+            })
+
+        self._db = self._db.astype({
+            "account_id": "int64",
+            "balance": "float64",
+            "account_type": "str",
+            "points": "int64",
+        })
+
+    def _save(self):
+        """
+        Save DB.
+        """
+        self._db.to_csv(self._file_path, index=False)
+
+    def account_exists(self, account_id: int) -> bool:
         """
         Check whether or not an account exists
         """
-        return id in self._db['account_id'].values
+        return (self._db["account_id"] == account_id).any()
 
-    def create_account(self, id: int, account_type: str = DEFAULT_ACCOUNT_TYPE) -> bool:
+    def create_account(self, account_id: int, account_type: str = DEFAULT_ACCOUNT_TYPE) -> bool:
         """
         Create an account on the system
         """
-        if self.account_exists(id):
+        if self.account_exists(account_id):
             return False
 
         points = BONUS_ACCOUNT_INITIAL_POINTS if account_type == BONUS_ACCOUNT_TYPE else 0
-        new_registration = pd.DataFrame(
-            [{"account_id": id, "balance": 0.0, "account_type": account_type, "points": points}]
-        )
-        self._db = pd.concat([self._db, new_registration], ignore_index=True)
-        self._db.to_csv(self.FILE_PATH, index=False)
+
+        new_account = pd.DataFrame([{
+            "account_id": account_id,
+            "balance": 0.0,
+            "account_type": account_type,
+            "points": points,
+        }])
+
+        self._db = pd.concat([self._db, new_account], ignore_index=True)
+
+        self._save()
+
         return True
 
-    def get_balance(self, id: int) -> float:
+    def get_balance(self, account_id: int) -> float | None:
         """
         Returns the balance of an account
         """
-        balance = self._db.loc[self._db['account_id'] == id, 'balance'].values
-        if len(balance) > 0:
-            return float(balance[0])
-        return -float("inf")
-    
-    def deposit(self, id: int, amount: float) -> bool:
+        balance = self._db.loc[self._db["account_id"] == account_id, "balance"].values
+        if len(balance) == 0:
+            return None
+
+        return float(balance[0])
+
+    def deposit(self, account_id: int, amount: float) -> bool:
         """
         Deposits the amount into the account.
         """
-        if not self.account_exists(id):
+        if not self.account_exists(account_id):
             return False
 
-        self._db.loc[self._db['account_id'] == id, 'balance'] += amount
-        self._db.to_csv(self.FILE_PATH, index=False)
+        self._db.loc[self._db["account_id"] == account_id, "balance"] += amount
+        self._save()
 
         return True
 
-    def withdrawal(self, id: int, amount: float) -> bool:
+    def withdrawal(self, account_id: int, amount: float) -> bool:
         """
         Withdraws money from the account.
         """
-        if not self.account_exists(id):
+        if not self.account_exists(account_id):
             return False
 
-        current_balance = self.get_balance(id)
-
-        if amount > current_balance:
-            return False
-
-        self._db.loc[self._db['account_id'] == id, 'balance'] -= amount
-        self._db.to_csv(self.FILE_PATH, index=False)
+        self._db.loc[self._db["account_id"] == account_id, "balance"]-= amount
+        self._save()
 
         return True
 
-    def get_account_type(self, id: int) -> str | None:
+    def get_account_type(self, account_id: int) -> str | None:
         """
         Returns the type of an account.
         """
-        account_type = self._db.loc[self._db["account_id"] == id, "account_type"].values
-        if len(account_type) > 0:
-            return str(account_type[0])
-        return None
+        account_type = self._db.loc[self._db["account_id"] == account_id, "account_type"].values
+        if len(account_type) == 0:
+            return None
+
+        return str(account_type[0])
 
     def apply_interest_to_savings_accounts(self, interest_rate: float) -> int:
         """
@@ -113,32 +129,33 @@ class AccountRepository:
         """
         savings_accounts = self._db["account_type"] == SAVINGS_ACCOUNT_TYPE
         updated_accounts = int(savings_accounts.sum())
-
         if updated_accounts == 0:
             return 0
 
         multiplier = 1 + (interest_rate / 100)
         self._db.loc[savings_accounts, "balance"] *= multiplier
-        self._db.to_csv(self.FILE_PATH, index=False)
+        self._save()
 
         return updated_accounts
 
-    def get_points(self, id: int) -> int | None:
+    def get_points(self, account_id: int) -> int | None:
         """
         Returns the points of an account.
         """
-        points = self._db.loc[self._db["account_id"] == id, "points"].values
-        if len(points) > 0:
-            return int(points[0])
-        return None
+        points = self._db.loc[self._db["account_id"] == account_id, "points"].values
+        if len(points) == 0:
+            return None
 
-    def add_points(self, id: int, points: int) -> bool:
+        return int(points[0])
+
+    def add_points(self, account_id: int, points: int) -> bool:
         """
         Adds points to an account.
         """
-        if not self.account_exists(id):
+        if not self.account_exists(account_id):
             return False
 
-        self._db.loc[self._db["account_id"] == id, "points"] += points
-        self._db.to_csv(self.FILE_PATH, index=False)
+        self._db.loc[self._db["account_id"] == account_id, "points"] += points
+        self._save()
+
         return True
