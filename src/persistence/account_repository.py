@@ -1,76 +1,90 @@
-import pandas as pd
 import os
+import pandas as pd
+
 
 class AccountRepository:
+    _FILE_PATH = "data/accounts.csv"
+
     def __init__(self):
         """
-        Initialise CSV database for accounts
+        Initialize CSV database for accounts.
         """
-        self.FILE_PATH = "data/accounts.csv"
-        if os.path.exists(self.FILE_PATH):
-            self._db = pd.read_csv(self.FILE_PATH)
+        if not os.path.exists(self._FILE_PATH):
+            os.makedirs(os.path.dirname(self._FILE_PATH), exist_ok=True)
+
+            db = pd.DataFrame({
+                "account_id": pd.Series(dtype="int64"),
+                "balance": pd.Series(dtype="float64"),
+            })
+
+            db.to_csv(self._FILE_PATH, index=False)
+            print("Account table created successfully!")
+
+        self._db = pd.read_csv(self._FILE_PATH)
+
+        if self._db.empty:
+            self._db = pd.DataFrame({
+                "account_id": pd.Series(dtype="int64"),
+                "balance": pd.Series(dtype="float64"),
+            })
+
         else:
-            db = pd.DataFrame(columns=["account_id", "balance"])
-            os.makedirs(os.path.dirname(self.FILE_PATH), exist_ok=True)
-            db.to_csv(self.FILE_PATH, index=False)
-            self._db = pd.read_csv(self.FILE_PATH)
-            print("Account table create with sucess!")
+            self._db = self._db.astype({"account_id": "int64", "balance": "float64"})
 
-        self._db['account_id'] = self._db['account_id'].astype(int)
-        self._db['balance'] = self._db['balance'].astype(float)
+    def _save(self) -> None:
+        """
+        Persist data to CSV.
+        """
+        self._db.to_csv(self._FILE_PATH, index=False)
 
-    def account_exists(self, id: int) -> bool:
+    def account_exists(self, account_id: int) -> bool:
         """
-        Check whether or not an account exists
+        Check whether an account exists.
         """
-        return id in self._db['account_id'].values
+        return (self._db["account_id"] == account_id).any()
 
-    def create_account(self, id: int) -> bool:
+    def create_account(self, account_id: int) -> bool:
         """
-        Create an account on the system
+        Create a new account.
         """
-        if self.account_exists(id):
-            return False
-            
-        new_registration = pd.DataFrame([{"account_id": id, "balance": 0.0}])
-        self._db = pd.concat([self._db, new_registration], ignore_index=True)
-        self._db.to_csv(self.FILE_PATH, index=False)
-        return True
-
-    def get_balance(self, id: int) -> float:
-        """
-        Returns the balance of an account
-        """
-        balance = self._db.loc[self._db['account_id'] == id, 'balance'].values
-        if len(balance) > 0:
-            return float(balance[0])
-        return -float("inf")
-    
-    def deposit(self, id: int, amount: float) -> bool:
-        """
-        Deposits the amount into the account.
-        """
-        if not self.account_exists(id):
+        if self.account_exists(account_id):
             return False
 
-        self._db.loc[self._db['account_id'] == id, 'balance'] += amount
-        self._db.to_csv(self.FILE_PATH, index=False)
+        new_account = pd.DataFrame([{"account_id": account_id, "balance": 0.0,}])
+        self._db = pd.concat([self._db, new_account], ignore_index=True)
+        self._save()
 
         return True
 
-    def withdrawal(self, id: int, amount: float) -> bool:
+    def get_balance(self, account_id: int) -> float | None:
         """
-        Withdraws money from the account.
+        Return account balance.
         """
-        if not self.account_exists(id):
+        balance = self._db.loc[self._db["account_id"] == account_id, "balance"].values
+        if len(balance) == 0:
+            return None
+        return float(balance[0])
+
+    def deposit(self, account_id: int, amount: float) -> bool:
+        """
+        Deposit money into account.
+        """
+        if not self.account_exists(account_id):
             return False
 
-        current_balance = self.get_balance(id)
+        self._db.loc[self._db["account_id"] == account_id, "balance"] += amount
+        self._save()
 
-        if amount > current_balance:
+        return True
+
+    def withdrawal(self, account_id: int, amount: float) -> bool:
+        """
+        Withdraw money from account.
+        """
+        if not self.account_exists(account_id):
             return False
 
-        self._db.loc[self._db['account_id'] == id, 'balance'] -= amount
-        self._db.to_csv(self.FILE_PATH, index=False)
+        self._db.loc[self._db["account_id"] == account_id, "balance"] -= amount
+        self._save()
 
         return True

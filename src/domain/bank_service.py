@@ -4,66 +4,92 @@ class BankService:
     def __init__(self, repository: AccountRepository):
         self.repository = repository
 
-    def register_account(self, account_id: int) -> tuple[bool, float]:
+    def register_account(self, account_id: int) -> tuple[float, bool]:
         """
-        Try to create an account with a balance of 0 and return whether it was successful or not, and the balance;
-        if the account already exists, return the current balance.
+        Try to create an account.
         """
         if self.repository.create_account(account_id):
-            return True, 0.0
+            return 0.0, True
 
         balance = self.repository.get_balance(account_id)
-        return False, balance
+        return balance if balance is not None else 0.0, False
 
-    def check_balance(self, account_id: int) -> tuple[float, bool]:
+    def check_balance(self, account_id: int) -> tuple[float | None, bool]:
         """
-        Returns the balance of the specified account, if it exists.
+        Return account balance if account exists.
         """
         balance = self.repository.get_balance(account_id)
-        if balance == -float("inf"):
-            return balance, False
+
+        if balance is None:
+            return None, False
+
         return balance, True
-    
-    def make_deposit(self, account_id: int, amount: float) -> tuple[float, bool]:
+
+    def make_deposit(self, account_id: int, amount: float) -> tuple[float | None, str]:
         """
         Make the deposit and refund the amount.
         """
         if amount <= 0:
-            return -float("inf"), False
-        sucess = self.repository.deposit(account_id, amount)
-        if sucess:
-            return self.repository.get_balance(account_id), sucess
-        return -float("inf"), sucess
-    
-    def make_withdrawal(self, account_id: int, amount: float) -> tuple[float, bool]:
+            return None, "Valor deve ser maior que zero"
+
+        success = self.repository.deposit(account_id, amount)
+
+        if not success:
+            return None, "Conta inexistente"
+
+        return self.repository.get_balance(account_id), "Sucesso"
+
+    def make_withdrawal(self, account_id: int, amount: float) -> tuple[float | None, str]:
         """
         Make the withdrawal and refund the amount.
         """
         if amount <= 0:
-            return -float("inf"), False
-        sucess = self.repository.withdrawal(account_id, amount)
-        if sucess:
-            return self.repository.get_balance(account_id), sucess
-        return -float("inf"), sucess
+            return None, "Valor deve ser maior que zero"
 
-    def make_transfer(self, origin_id: int, destination_id: int, amount: float) -> tuple[float, float, bool]:
+        current_balance = self.repository.get_balance(account_id)
+
+        if current_balance is None:
+            return None, "Conta inexistente"
+
+        if amount > current_balance:
+            return None, "Saldo insuficiente"
+
+        success = self.repository.withdrawal(account_id, amount)
+
+        if not success:
+            return None, "Erro no saque"
+
+        return self.repository.get_balance(account_id), "Sucesso"
+
+    def make_transfer(self, origin_id: int, destination_id: int, amount: float) -> tuple[float | None, float | None, str]:
         """
         Make a transfer from origin to destination and return both balances.
         """
         if amount <= 0:
-            return -float("inf"), -float("inf"), False
+            return None, None, "Valor deve ser maior que zero"
+
+        origin_balance = self.repository.get_balance(origin_id)
+        if origin_balance is None:
+            return None, None, "Conta de origem não existe"
         
-        _, origin_exists = self.check_balance(origin_id)
-        _, destination_exists = self.check_balance(destination_id)
-        
-        if not origin_exists or not destination_exists:
-            return -float("inf"), -float("inf"), False
-        
+        destination_balance = self.repository.get_balance(destination_id)
+        if destination_balance is None:
+            return None, None, "Conta de destino não existe"
+
+        if amount > origin_balance:
+            return None, None, "Saldo insuficiente"
+
         withdraw_success = self.repository.withdrawal(origin_id, amount)
-
         if not withdraw_success:
-            return -float("inf"), -float("inf"), False
+            return None, None, "Erro na retirada"
 
-        self.repository.deposit(destination_id, amount)
-        
-        return self.repository.get_balance(origin_id), self.repository.get_balance(destination_id), True
+        deposit_success = self.repository.deposit(destination_id, amount)
+        if not deposit_success:
+            _ = self.repository.deposit(origin_id, amount)
+            return None, None, "Erro no deposito"
+
+        return (
+            self.repository.get_balance(origin_id),
+            self.repository.get_balance(destination_id),
+            "Sucesso",
+        )
