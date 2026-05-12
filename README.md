@@ -17,6 +17,17 @@ A simple toy project for practising GitLab Flow and CI/CD
 - **Ruff:** For linter and formatting Python code
 - **Devcontainer:** Docker container for standardising the development environment
 
+## Pre-Run
+- Install docker
+- Install devcontainer on VS Code
+- Clone the repo
+- Reopen in container
+
+## Run
+```sh
+make run
+```
+
 ## Authors
 - **Dinorah Farias:** [dinorahfariasc](https://github.com/dinorahfariasc)
 - **Rodrigo Faustino:** [RodrigoFaustin0](https://github.com/RodrigoFaustin0)
