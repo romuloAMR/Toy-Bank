@@ -65,7 +65,18 @@ class BankService:
         if current_balance is None:
             return None, "Conta inexistente"
 
-        if amount > current_balance:
+        account_type = self.repository.get_account_type(account_id)
+
+        if (
+            account_type in [DEFAULT_ACCOUNT_TYPE, BONUS_ACCOUNT_TYPE]
+            and current_balance - amount < -1000
+        ):
+            return None, "Limite excedido"
+
+        if (
+            account_type == SAVINGS_ACCOUNT_TYPE
+            and amount > current_balance
+        ):
             return None, "Saldo insuficiente"
 
         self.repository.withdrawal(account_id, amount)
@@ -87,7 +98,18 @@ class BankService:
         if destination_balance is None:
             return None, None, "Conta de destino inexistente"
 
-        if amount > origin_balance:
+        origin_type = self.repository.get_account_type(origin_id)
+
+        if (
+            origin_type in [DEFAULT_ACCOUNT_TYPE, BONUS_ACCOUNT_TYPE]
+            and origin_balance - amount < -1000
+        ):
+            return None, None, "Limite excedido"
+
+        if (
+            origin_type == SAVINGS_ACCOUNT_TYPE
+            and amount > origin_balance
+        ):
             return None, None, "Saldo insuficiente"
 
         self.repository.withdrawal(origin_id, amount)
