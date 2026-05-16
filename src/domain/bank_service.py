@@ -4,14 +4,15 @@ class BankService:
     def __init__(self, repository: AccountRepository):
         self.repository = repository
 
-    def register_account(self, account_id: int) -> tuple[float, bool]:
+    def register_account(self, account_id: int, opening_balance: float = 0.0) -> tuple[float, bool]:
         """
         Try to create an account.
         """
-        if self.repository.create_account(account_id):
-            return 0.0, True
+        if self.repository.create_account(account_id, opening_balance):
+            return opening_balance, True
 
         balance = self.repository.get_balance(account_id)
+        
         return balance if balance is not None else 0.0, False
 
     def check_balance(self, account_id: int) -> tuple[float | None, bool]:

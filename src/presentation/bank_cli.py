@@ -22,16 +22,42 @@ def _prompt_amount_number() -> float:
         except ValueError:
             print("Entrada inválida. Digite um valor numérico (ex: 100.50).")
 
+def _prompt_opening_balance() -> float:
+    """
+    Read opening balance
+    """
+    while True:
+        num = input("Digite o saldo inicial: ").strip().replace(",", ".")
+
+        try:
+            return float(num)
+
+        except ValueError:
+            print("Entrada inválida. Digite um valor numérico.")
+
 def run_registration(service):
     """
     Call registration service
     """
     acc_id = _prompt_account_number()
-    balance, success = service.register_account(acc_id)
+    opening_balance = _prompt_opening_balance()
+
+    balance, success = service.register_account(
+        acc_id,
+        opening_balance
+    )
+
     if success:
-        print(f"Conta {acc_id} criada com sucesso. Saldo: R$ {balance:.2f}")
+        print(
+            f"Conta {acc_id} criada com sucesso. "
+            f"Saldo: R$ {balance:.2f}"
+        )
+
     else:
-        print(f"Conta {acc_id} já existe. Saldo: R$ {balance:.2f}")
+        print(
+            f"Conta {acc_id} já existe. "
+            f"Saldo: R$ {balance:.2f}"
+        )
 
 def show_balance(service):
     """

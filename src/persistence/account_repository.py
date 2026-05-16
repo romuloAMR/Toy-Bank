@@ -43,15 +43,22 @@ class AccountRepository:
         """
         return (self._db["account_id"] == account_id).any()
 
-    def create_account(self, account_id: int) -> bool:
+    def create_account(self, account_id: int, opening_balance: float = 0.0) -> bool:
         """
         Create a new account.
         """
         if self.account_exists(account_id):
             return False
 
-        new_account = pd.DataFrame([{"account_id": account_id, "balance": 0.0,}])
+        new_account = pd.DataFrame([
+            {
+                "account_id": account_id,
+                "balance": opening_balance,
+            }
+        ])
+
         self._db = pd.concat([self._db, new_account], ignore_index=True)
+
         self._save()
 
         return True
