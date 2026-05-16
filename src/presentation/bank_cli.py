@@ -38,6 +38,19 @@ def _prompt_amount_number() -> float:
                 "Digite um valor numérico."
             )
 
+def _prompt_opening_balance() -> float:
+    """
+    Read opening balance
+    """
+    while True:
+        num = input("Digite o saldo inicial: ").strip().replace(",", ".")
+
+        try:
+            return float(num)
+
+        except ValueError:
+            print("Entrada inválida. Digite um valor numérico.")
+
 
 def _prompt_interest_rate() -> float:
     """
@@ -86,8 +99,9 @@ def run_registration(service: BankService):
     """
     account_id = _prompt_account_number()
     account_type = _prompt_account_type()
+    opening_balance = _prompt_opening_balance()
 
-    balance, success = service.register_account(account_id, account_type)
+    balance, success = service.register_account(account_id, account_type, opening_balance)
     account_label = ACCOUNT_TYPE_LABELS[account_type]
 
     if success:
@@ -101,7 +115,6 @@ def run_registration(service: BankService):
             f"Conta {account_id} já existe. "
             f"Saldo atual: R$ {balance:.2f}"
         )
-
 
 def show_balance(service: BankService):
     """

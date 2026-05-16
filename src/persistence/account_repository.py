@@ -57,7 +57,7 @@ class AccountRepository:
         """
         return (self._db["account_id"] == account_id).any()
 
-    def create_account(self, account_id: int, account_type: str = DEFAULT_ACCOUNT_TYPE) -> bool:
+    def create_account(self, account_id: int, account_type: str = DEFAULT_ACCOUNT_TYPE, opening_balance: float = 0.0) -> bool:
         """
         Create an account on the system
         """
@@ -68,7 +68,7 @@ class AccountRepository:
 
         new_account = pd.DataFrame([{
             "account_id": account_id,
-            "balance": 0.0,
+            "balance": opening_balance,
             "account_type": account_type,
             "points": points,
         }])

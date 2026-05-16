@@ -5,19 +5,19 @@ from domain.account_types import BONUS_ACCOUNT_TYPE, DEFAULT_ACCOUNT_TYPE
 
 class BankService:
     def __init__(self, repository: AccountRepository):
-        self.repository = repository
+        self.repository = repository 
 
-    def register_account(self, account_id: int, account_type: str = DEFAULT_ACCOUNT_TYPE) -> tuple[float, bool]:
+    def register_account(self, account_id: int, account_type: str = DEFAULT_ACCOUNT_TYPE, opening_balance: float = 0.0) -> tuple[float, bool]:
         """
         Try to create an account with a balance of 0 and return whether it was successful or not, and the balance;
         if the account already exists, return the current balance.
         """
-        if self.repository.create_account(account_id, account_type):
-            return 0.0, True
+        if self.repository.create_account(account_id, account_type, opening_balance):
+            return opening_balance, True
 
         balance = self.repository.get_balance(account_id)
 
-        return balance if balance is not None else 0.0, False
+        return balance if balance is not None else 0.0, False   
 
     def check_balance(self, account_id: int) -> tuple[float | None, bool]:
         """
