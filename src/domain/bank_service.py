@@ -148,7 +148,7 @@ class BankService:
         if account_type != BONUS_ACCOUNT_TYPE:
             return 0
 
-        points = int(amount // 200)
+        points = int(amount // 150)
         if points > 0:
             self.repository.add_points(account_id, points)
 
