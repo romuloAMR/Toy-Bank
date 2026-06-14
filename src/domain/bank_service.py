@@ -1,19 +1,29 @@
-from persistence.account_repository import AccountRepository
-
-from domain.account_types import BONUS_ACCOUNT_TYPE, DEFAULT_ACCOUNT_TYPE, SAVINGS_ACCOUNT_TYPE
+from src.domain.account_types import (
+    BONUS_ACCOUNT_TYPE,
+    DEFAULT_ACCOUNT_TYPE,
+    SAVINGS_ACCOUNT_TYPE,
+)
+from src.persistence.account_repository import AccountRepository
 
 
 class BankService:
     def __init__(self, repository: AccountRepository):
         self.repository = repository
 
-    def register_account(self, account_id: int, account_type: str = DEFAULT_ACCOUNT_TYPE, opening_balance: float = 0.0) -> tuple[float, bool]:
+    def register_account(
+        self,
+        account_id: int,
+        account_type: str = DEFAULT_ACCOUNT_TYPE,
+        opening_balance: float = 0.0,
+    ) -> tuple[float, bool]:
         """
         Try to create an account with a balance of 0 and return whether it was successful or not, and the balance;
         if the account already exists, return the current balance.
         """
         if account_type == SAVINGS_ACCOUNT_TYPE:
-            if self.repository.create_account(account_id, account_type, opening_balance):
+            if self.repository.create_account(
+                account_id, account_type, opening_balance
+            ):
                 return opening_balance, True
         else:
             if self.repository.create_account(account_id, account_type):
@@ -54,7 +64,9 @@ class BankService:
 
         return balance, "Sucesso"
 
-    def make_withdrawal(self, account_id: int, amount: float) -> tuple[float | None, str]:
+    def make_withdrawal(
+        self, account_id: int, amount: float
+    ) -> tuple[float | None, str]:
         """
         Make the withdrawal and refund the amount.
         """
@@ -73,17 +85,16 @@ class BankService:
         ):
             return None, "Limite excedido"
 
-        if (
-            account_type == SAVINGS_ACCOUNT_TYPE
-            and amount > current_balance
-        ):
+        if account_type == SAVINGS_ACCOUNT_TYPE and amount > current_balance:
             return None, "Saldo insuficiente"
 
         self.repository.withdrawal(account_id, amount)
 
         return self.repository.get_balance(account_id), "Sucesso"
 
-    def make_transfer(self, origin_id: int, destination_id: int, amount: float) -> tuple[float | None, float | None, str]:
+    def make_transfer(
+        self, origin_id: int, destination_id: int, amount: float
+    ) -> tuple[float | None, float | None, str]:
         """
         Make a transfer from origin to destination and return both balances.
         """
@@ -106,10 +117,7 @@ class BankService:
         ):
             return None, None, "Limite excedido"
 
-        if (
-            origin_type == SAVINGS_ACCOUNT_TYPE
-            and amount > origin_balance
-        ):
+        if origin_type == SAVINGS_ACCOUNT_TYPE and amount > origin_balance:
             return None, None, "Saldo insuficiente"
 
         self.repository.withdrawal(origin_id, amount)
@@ -118,13 +126,19 @@ class BankService:
             self.repository.deposit(origin_id, amount)
             return None, None, "Erro na transferência"
 
-        earned_points = self._award_bonus_points_for_received_transfer(destination_id, amount)
+        earned_points = self._award_bonus_points_for_received_transfer(
+            destination_id, amount
+        )
 
         origin_balance = self.repository.get_balance(origin_id)
         destination_balance = self.repository.get_balance(destination_id)
 
         if earned_points > 0:
-            return origin_balance, destination_balance, f"Sucesso ({earned_points} ponto(s) ganhos)"
+            return (
+                origin_balance,
+                destination_balance,
+                f"Sucesso ({earned_points} ponto(s) ganhos)",
+            )
 
         return origin_balance, destination_balance, "Sucesso"
 
@@ -135,7 +149,9 @@ class BankService:
         if interest_rate < 0:
             return 0, "Taxa inválida"
 
-        updated_accounts = self.repository.apply_interest_to_savings_accounts(interest_rate)
+        updated_accounts = self.repository.apply_interest_to_savings_accounts(
+            interest_rate
+        )
 
         return updated_accounts, "Sucesso"
 
@@ -166,7 +182,9 @@ class BankService:
 
         return points
 
-    def _award_bonus_points_for_received_transfer(self, account_id: int, amount: float) -> int:
+    def _award_bonus_points_for_received_transfer(
+        self, account_id: int, amount: float
+    ) -> int:
         """
         Awards bonus account points for received transfers.
         """
