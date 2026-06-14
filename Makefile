@@ -10,6 +10,11 @@ run:
 dev:
 	uv run uvicorn src.main:app --reload
 
+
+## test: Run unit tests
+test:
+	uv run pytest tests/ -v
+
 ## check: Check all code base
 check:
 	uv run ruff check . --fix
