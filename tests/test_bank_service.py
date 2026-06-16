@@ -1,7 +1,13 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
+from src.domain.account_types import (
+    BONUS_ACCOUNT_TYPE,
+    DEFAULT_ACCOUNT_TYPE,
+    SAVINGS_ACCOUNT_TYPE,
+)
 from src.domain.bank_service import BankService
-from src.domain.account_types import DEFAULT_ACCOUNT_TYPE, BONUS_ACCOUNT_TYPE, SAVINGS_ACCOUNT_TYPE
 
 
 @pytest.fixture
@@ -16,8 +22,8 @@ def service(mock_repo):
 
 # ─── Cadastrar Conta ───────────────────────────────────────────────────────────
 
-class TestRegisterAccount:
 
+class TestRegisterAccount:
     def test_cadastrar_conta_simples(self, service, mock_repo):
         mock_repo.create_account.return_value = True
         balance, success = service.register_account(1, DEFAULT_ACCOUNT_TYPE)
@@ -32,7 +38,9 @@ class TestRegisterAccount:
 
     def test_cadastrar_conta_poupanca_com_saldo_inicial(self, service, mock_repo):
         mock_repo.create_account.return_value = True
-        balance, success = service.register_account(3, SAVINGS_ACCOUNT_TYPE, opening_balance=500.0)
+        balance, success = service.register_account(
+            3, SAVINGS_ACCOUNT_TYPE, opening_balance=500.0
+        )
         assert success is True
         assert balance == 500.0
 
@@ -46,8 +54,8 @@ class TestRegisterAccount:
 
 # ─── Consultar Conta ───────────────────────────────────────────────────────────
 
-class TestGetAccount:
 
+class TestGetAccount:
     def test_consultar_conta_simples(self, service, mock_repo):
         mock_repo.get_balance.return_value = 100.0
         mock_repo.get_account_type.return_value = DEFAULT_ACCOUNT_TYPE
@@ -93,8 +101,8 @@ class TestGetAccount:
 
 # ─── Consultar Saldo ───────────────────────────────────────────────────────────
 
-class TestCheckBalance:
 
+class TestCheckBalance:
     def test_consultar_saldo_conta_existente(self, service, mock_repo):
         mock_repo.get_balance.return_value = 250.0
         balance, exists = service.check_balance(1)
@@ -110,8 +118,8 @@ class TestCheckBalance:
 
 # ─── Crédito ───────────────────────────────────────────────────────────────────
 
-class TestMakeDeposit:
 
+class TestMakeDeposit:
     def test_credito_caso_normal(self, service, mock_repo):
         mock_repo.account_exists.return_value = True
         mock_repo.get_balance.return_value = 150.0
@@ -135,15 +143,14 @@ class TestMakeDeposit:
         mock_repo.get_account_type.return_value = BONUS_ACCOUNT_TYPE
         mock_repo.get_balance.return_value = 600.0
         balance, msg = service.make_deposit(2, 500.0)
-        # 500 // 100 = 5 pontos
         assert "5 ponto(s) ganhos" in msg
         mock_repo.add_points.assert_called_once_with(2, 5)
 
 
 # ─── Débito ────────────────────────────────────────────────────────────────────
 
-class TestMakeWithdrawal:
 
+class TestMakeWithdrawal:
     def test_debito_caso_normal(self, service, mock_repo):
         mock_repo.get_balance.side_effect = [500.0, 400.0]
         mock_repo.get_account_type.return_value = DEFAULT_ACCOUNT_TYPE
@@ -180,8 +187,8 @@ class TestMakeWithdrawal:
 
 # ─── Transferência ─────────────────────────────────────────────────────────────
 
-class TestMakeTransfer:
 
+class TestMakeTransfer:
     def test_transferencia_valor_negativo(self, service, mock_repo):
         balance_o, balance_d, msg = service.make_transfer(1, 2, -100.0)
         assert msg == "Valor deve ser maior que zero"
@@ -200,7 +207,10 @@ class TestMakeTransfer:
 
     def test_transferencia_bonificacao_conta_bonus_destino(self, service, mock_repo):
         mock_repo.get_balance.side_effect = [500.0, 200.0, 300.0, 600.0]
-        mock_repo.get_account_type.side_effect = [DEFAULT_ACCOUNT_TYPE, BONUS_ACCOUNT_TYPE]
+        mock_repo.get_account_type.side_effect = [
+            DEFAULT_ACCOUNT_TYPE,
+            BONUS_ACCOUNT_TYPE,
+        ]
         mock_repo.deposit.return_value = True
         balance_o, balance_d, msg = service.make_transfer(1, 2, 400.0)
         # 400 // 200 = 2 pontos
@@ -209,8 +219,8 @@ class TestMakeTransfer:
 
 # ─── Render Juros ──────────────────────────────────────────────────────────────
 
-class TestRenderInterest:
 
+class TestRenderInterest:
     def test_render_juros_correto(self, service, mock_repo):
         mock_repo.apply_interest_to_savings_accounts.return_value = 3
         updated, msg = service.render_interest(10.0)

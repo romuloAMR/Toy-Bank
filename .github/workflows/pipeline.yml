@@ -1,0 +1,55 @@
+name: Toy-Bank Workflow
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+      - production
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-26.04
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Make
+      run: |
+        sudo apt update -y
+        sudo apt install -y make
+
+    - name: Install UV
+      uses: astral-sh/setup-uv@v5
+      with:
+        version: "latest" 
+
+    - name: Install Dependencies
+      run: make install
+
+    - name: Run Static Analysis + Linter + Formatter
+      run: make check
+
+    - name: Run Tests
+      run: make test
+
+    - name: Extract project version
+      id: get_version
+      run: |
+        VERSION=$(uv run python -c "
+        import tomllib
+        with open('pyproject.toml', 'rb') as f:
+            print(tomllib.load(f)['project']['version'])
+        ")
+        echo "PROJECT_VERSION=$VERSION" >> $GITHUB_ENV
+        echo "Extracted version: $VERSION"
+
+    - name: Build Docker Image
+      run: |
+        if [ -f Dockerfile ]; then
+          echo "Building image with version tag: ${{ env.PROJECT_VERSION }}"
+          docker build -t toy-bank:${{ env.PROJECT_VERSION }} .
+          docker tag toy-bank:${{ env.PROJECT_VERSION }} toy-bank:latest
+        else
+          echo "No Dockerfile found. Skipping this step..."
+        fi

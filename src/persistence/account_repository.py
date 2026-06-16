@@ -62,7 +62,7 @@ class AccountRepository:
         """
         Check whether or not an account exists
         """
-        return (self._db["account_id"] == account_id).any()
+        return bool((self._db["account_id"] == account_id).any())
 
     def create_account(
         self,
