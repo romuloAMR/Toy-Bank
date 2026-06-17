@@ -6,10 +6,14 @@ on:
       - main
       - staging
       - production
+      - feature/pipeline
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/toy-bank
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -41,15 +45,24 @@ jobs:
         with open('pyproject.toml', 'rb') as f:
             print(tomllib.load(f)['project']['version'])
         ")
-        echo "PROJECT_VERSION=$VERSION" >> $GITHUB_ENV
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Extracted version: $VERSION"
 
     - name: Build Docker Image
       run: |
-        if [ -f Dockerfile ]; then
-          echo "Building image with version tag: ${{ env.PROJECT_VERSION }}"
-          docker build -t toy-bank:${{ env.PROJECT_VERSION }} .
-          docker tag toy-bank:${{ env.PROJECT_VERSION }} toy-bank:latest
-        else
-          echo "No Dockerfile found. Skipping this step..."
-        fi
+        echo "Building image with version tag: ${{ steps.get_version.outputs.version }}"
+        docker build -t ${{ env.DOCKER_IMAGE }}:${{ steps.get_version.outputs.version }} .
+        docker tag ${{ env.DOCKER_IMAGE }}:${{ steps.get_version.outputs.version }} ${{ env.DOCKER_IMAGE }}:latest
+
+    - name: Push Docker Image to Docker Hub
+      run: |
+        echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ env.DOCKER_USERNAME }}" --password-stdin
+        docker push ${{ env.DOCKER_IMAGE }}:${{ steps.get_version.outputs.version }}
+        docker push ${{ env.DOCKER_IMAGE }}:latest
+
+    - name: Create build tag
+      run: |
+        git config user.name "github-actions"
+        git config user.email "github-actions@github.com"
+        git tag build-${{ github.run_number }}
+        git push origin build-${{ github.run_number }}
