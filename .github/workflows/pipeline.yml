@@ -6,7 +6,6 @@ on:
       - main
       - staging
       - production
-      - feature/pipeline
 
 jobs:
   build-and-test:
