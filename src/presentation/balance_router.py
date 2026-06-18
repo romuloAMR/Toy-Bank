@@ -26,7 +26,7 @@ def create_account(
 
     return {
         "success": success,
-        "balance": round(balance, 2),
+        "balance": round(balance or 0.0, 2),
     }
 
 
@@ -46,7 +46,7 @@ def get_account(account_id: int, service: BankService = Depends(get_bank_service
     response = {
         "id": account_id,
         "account_type": account_type,
-        "balance": round(balance, 2),
+        "balance": round(balance or 0.0, 2),
     }
 
     points = service.get_points(account_id)
@@ -70,7 +70,7 @@ def get_balance(account_id: int, service: BankService = Depends(get_bank_service
 
     return {
         "account_id": account_id,
-        "balance": round(balance, 2),
+        "balance": round(balance or 0.0, 2),
     }
 
 
@@ -93,7 +93,7 @@ def credit_account(
         )
 
     return {
-        "balance": round(balance, 2),
+        "balance": round(balance or 0.0, 2),
         "message": message,
     }
 
@@ -117,7 +117,7 @@ def debit_account(
         )
 
     return {
-        "balance": round(balance, 2),
+        "balance": round(balance or 0.0, 2),
         "message": message,
     }
 
@@ -140,8 +140,8 @@ def transfer_funds(
         )
 
     return {
-        "source_balance": round(source_balance, 2),
-        "destination_balance": round(destination_balance, 2),
+        "source_balance": round(source_balance or 0.0, 2),
+        "destination_balance": round(destination_balance or 0.0, 2),
         "message": message,
     }
 
