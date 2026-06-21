@@ -1,7 +1,8 @@
 from pathlib import Path
+
 import pandas as pd
 
-from domain.account_types import (
+from src.domain.account_types import (
     BONUS_ACCOUNT_INITIAL_POINTS,
     BONUS_ACCOUNT_TYPE,
     DEFAULT_ACCOUNT_TYPE,
@@ -19,31 +20,37 @@ class AccountRepository:
         if not self._file_path.exists():
             self._file_path.parent.mkdir(parents=True, exist_ok=True)
 
-            db = pd.DataFrame({
-                "account_id": pd.Series(dtype="int64"),
-                "balance": pd.Series(dtype="float64"),
-                "account_type": pd.Series(dtype="str"),
-                "points": pd.Series(dtype="int64"),
-            })
+            db = pd.DataFrame(
+                {
+                    "account_id": pd.Series(dtype="int64"),
+                    "balance": pd.Series(dtype="float64"),
+                    "account_type": pd.Series(dtype="str"),
+                    "points": pd.Series(dtype="int64"),
+                }
+            )
 
             db.to_csv(self._file_path, index=False)
 
         self._db = pd.read_csv(self._file_path)
 
         if self._db.empty:
-            self._db = pd.DataFrame({
-                "account_id": pd.Series(dtype="int64"),
-                "balance": pd.Series(dtype="float64"),
-                "account_type": pd.Series(dtype="str"),
-                "points": pd.Series(dtype="int64"),
-            })
+            self._db = pd.DataFrame(
+                {
+                    "account_id": pd.Series(dtype="int64"),
+                    "balance": pd.Series(dtype="float64"),
+                    "account_type": pd.Series(dtype="str"),
+                    "points": pd.Series(dtype="int64"),
+                }
+            )
 
-        self._db = self._db.astype({
-            "account_id": "int64",
-            "balance": "float64",
-            "account_type": "str",
-            "points": "int64",
-        })
+        self._db = self._db.astype(
+            {
+                "account_id": "int64",
+                "balance": "float64",
+                "account_type": "str",
+                "points": "int64",
+            }
+        )
 
     def _save(self):
         """
@@ -55,23 +62,34 @@ class AccountRepository:
         """
         Check whether or not an account exists
         """
-        return (self._db["account_id"] == account_id).any()
+        return bool((self._db["account_id"] == account_id).any())
 
-    def create_account(self, account_id: int, account_type: str = DEFAULT_ACCOUNT_TYPE, opening_balance: float = 0.0) -> bool:
+    def create_account(
+        self,
+        account_id: int,
+        account_type: str = DEFAULT_ACCOUNT_TYPE,
+        opening_balance: float = 0.0,
+    ) -> bool:
         """
         Create an account on the system
         """
         if self.account_exists(account_id):
             return False
 
-        points = BONUS_ACCOUNT_INITIAL_POINTS if account_type == BONUS_ACCOUNT_TYPE else 0
+        points = (
+            BONUS_ACCOUNT_INITIAL_POINTS if account_type == BONUS_ACCOUNT_TYPE else 0
+        )
 
-        new_account = pd.DataFrame([{
-            "account_id": account_id,
-            "balance": opening_balance,
-            "account_type": account_type,
-            "points": points,
-        }])
+        new_account = pd.DataFrame(
+            [
+                {
+                    "account_id": account_id,
+                    "balance": opening_balance,
+                    "account_type": account_type,
+                    "points": points,
+                }
+            ]
+        )
 
         self._db = pd.concat([self._db, new_account], ignore_index=True)
 
@@ -108,7 +126,7 @@ class AccountRepository:
         if not self.account_exists(account_id):
             return False
 
-        self._db.loc[self._db["account_id"] == account_id, "balance"]-= amount
+        self._db.loc[self._db["account_id"] == account_id, "balance"] -= amount
         self._save()
 
         return True
@@ -117,7 +135,9 @@ class AccountRepository:
         """
         Returns the type of an account.
         """
-        account_type = self._db.loc[self._db["account_id"] == account_id, "account_type"].values
+        account_type = self._db.loc[
+            self._db["account_id"] == account_id, "account_type"
+        ].values
         if len(account_type) == 0:
             return None
 

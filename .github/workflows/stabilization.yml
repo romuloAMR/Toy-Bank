@@ -1,0 +1,93 @@
+name: Toy-Bank Stabilization
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - staging
+
+jobs:
+  stabilization:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_BRANCH: ${{ github.head_ref }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Make
+        run: |
+          sudo apt update -y
+          sudo apt install -y make
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Install Dependencies
+        run: make install
+
+      - name: Run Static Analysis + Linter + Formatter
+        run: make check
+
+      - name: Run Tests
+        run: make test
+
+      - name: Calculate next RC tag
+        id: rc_tag
+        run: |
+          git fetch --tags
+
+          if [[ "$SOURCE_BRANCH" == "main" ]]; then
+            LATEST=$(git tag | grep -E '^rc-[0-9]+\.[0-9]+$' | sort -V | tail -1)
+            if [ -z "$LATEST" ]; then
+              NEW_TAG="rc-1.1"
+            else
+              X=$(echo $LATEST | cut -d- -f2 | cut -d. -f1)
+              Y=$(echo $LATEST | cut -d- -f2 | cut -d. -f2)
+              NEW_TAG="rc-${X}.$((Y + 1))"
+            fi
+
+          elif [[ "$SOURCE_BRANCH" == bugfix/* ]]; then
+            LATEST=$(git tag | grep -E '^rc-[0-9]+\.[0-9]+(\.[0-9]+)?$' | sort -V | tail -1)
+            if [ -z "$LATEST" ]; then
+              NEW_TAG="rc-1.1.1"
+            else
+              X=$(echo $LATEST | cut -d- -f2 | cut -d. -f1)
+              Y=$(echo $LATEST | cut -d- -f2 | cut -d. -f2)
+              Z=$(echo $LATEST | cut -d- -f2 | cut -d. -f3)
+              Z=${Z:-0}
+              NEW_TAG="rc-${X}.${Y}.$((Z + 1))"
+            fi
+
+          else
+            echo "Source branch '$SOURCE_BRANCH' is not main or bugfix/*. Skipping tag creation."
+            exit 0
+          fi
+
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+          echo "Calculated tag: $NEW_TAG"
+
+      - name: Create RC tag
+        run: |
+          TAG="${{ steps.rc_tag.outputs.new_tag }}"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag $TAG
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} $TAG
+
+      - name: Generate artifact zip
+        run: |
+          TAG="${{ steps.rc_tag.outputs.new_tag }}"
+          zip -r "${TAG}.zip" src/ pyproject.toml uv.lock Makefile Dockerfile
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.rc_tag.outputs.new_tag }}
+          path: ${{ steps.rc_tag.outputs.new_tag }}.zip
