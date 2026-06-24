@@ -2,9 +2,10 @@
 
 all: help
 
-## install: Install all project dependencies using uv
+## install: Install all project dependencies using uv ang configure git
 install:
 	uv sync
+	git config core.hooksPath hooks
 
 ## run: Run the project
 run:
