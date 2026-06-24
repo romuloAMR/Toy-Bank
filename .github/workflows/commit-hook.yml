@@ -1,0 +1,21 @@
+name: Validate Commit Message
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  commit-hook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate PR Title
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          echo "Validating title: $PR_TITLE"
+          echo "$PR_TITLE" > temp_msg.txt
+          python3 hooks/commit-msg temp_msg.txt
