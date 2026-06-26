@@ -1,0 +1,106 @@
+name: Toy-Bank Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - production
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_BRANCH: ${{ github.head_ref }}
+      DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/toy-bank
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Make
+        run: |
+          sudo apt update -y
+          sudo apt install -y make
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Install Dependencies
+        run: make install
+
+      - name: Run Static Analysis + Linter + Formatter
+        run: make check
+
+      - name: Run Tests
+        run: make test
+
+      - name: Calculate next release tag
+        id: rel_tag
+        run: |
+          git fetch --tags
+
+          if [[ "$SOURCE_BRANCH" == "staging" ]]; then
+            LATEST=$(git tag | grep -E '^rel-[0-9]+\.[0-9]+$' | sort -V | tail -1)
+            if [ -z "$LATEST" ]; then
+              NEW_TAG="rel-1.1"
+            else
+              X=$(echo $LATEST | cut -d- -f2 | cut -d. -f1)
+              Y=$(echo $LATEST | cut -d- -f2 | cut -d. -f2)
+              NEW_TAG="rel-${X}.$((Y + 1))"
+            fi
+
+          elif [[ "$SOURCE_BRANCH" == hotfix/* ]]; then
+            LATEST=$(git tag | grep -E '^rel-[0-9]+\.[0-9]+(\.[0-9]+)?$' | sort -V | tail -1)
+            if [ -z "$LATEST" ]; then
+              NEW_TAG="rel-1.1.1"
+            else
+              X=$(echo $LATEST | cut -d- -f2 | cut -d. -f1)
+              Y=$(echo $LATEST | cut -d- -f2 | cut -d. -f2)
+              Z=$(echo $LATEST | cut -d- -f2 | cut -d. -f3)
+              Z=${Z:-0}
+              NEW_TAG="rel-${X}.${Y}.$((Z + 1))"
+            fi
+
+          else
+            echo "Source branch '$SOURCE_BRANCH' is not staging or hotfix/*. Skipping."
+            exit 0
+          fi
+
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+          echo "Calculated tag: $NEW_TAG"
+
+      - name: Create release tag
+        run: |
+          TAG="${{ steps.rel_tag.outputs.new_tag }}"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag $TAG
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} $TAG
+
+      - name: Generate artifact zip
+        run: |
+          TAG="${{ steps.rel_tag.outputs.new_tag }}"
+          zip -r "${TAG}.zip" src/ pyproject.toml uv.lock Makefile Dockerfile
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.rel_tag.outputs.new_tag }}
+          path: ${{ steps.rel_tag.outputs.new_tag }}.zip
+
+      - name: Build Docker Image
+        run: |
+          TAG="${{ steps.rel_tag.outputs.new_tag }}"
+          docker build -t ${{ env.DOCKER_IMAGE }}:$TAG .
+          docker tag ${{ env.DOCKER_IMAGE }}:$TAG ${{ env.DOCKER_IMAGE }}:latest
+
+      - name: Push Docker Image to Docker Hub
+        run: |
+          echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          docker push ${{ env.DOCKER_IMAGE }}:${{ steps.rel_tag.outputs.new_tag }}
+          docker push ${{ env.DOCKER_IMAGE }}:latest
