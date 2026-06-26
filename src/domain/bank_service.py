@@ -8,7 +8,7 @@ from src.persistence.account_repository import AccountRepository
 
 class BankService:
     def __init__(self, repository: AccountRepository):
-        self.repository = repository
+        self.repository = repository 
 
     def register_account(
         self,
@@ -17,6 +17,8 @@ class BankService:
         opening_balance: float = 0.0,
     ) -> tuple[float, bool]:
         """
+        Try to create an account with a balance of 0 and return whether it was successful or not, and the balance;
+        if the account already exists, return the current balance.
         Try to create an account with a balance of 0 and return whether it was successful or not, and the balance;
         if the account already exists, return the current balance.
         """
@@ -36,6 +38,7 @@ class BankService:
     def check_balance(self, account_id: int) -> tuple[float | None, bool]:
         """
         Returns the balance of the specified account, if it exists.
+        Returns the balance of the specified account, if it exists.
         """
         balance = self.repository.get_balance(account_id)
         if balance is None:
@@ -51,8 +54,19 @@ class BankService:
             return None, "Valor deve ser maior que zero"
 
         if not self.repository.account_exists(account_id):
+        if not self.repository.account_exists(account_id):
             return None, "Conta inexistente"
 
+        self.repository.deposit(account_id, amount)
+
+        earned_points = self._award_bonus_points_for_deposit(account_id, amount)
+
+        balance = self.repository.get_balance(account_id)
+
+        if earned_points > 0:
+            return balance, f"Sucesso ({earned_points} ponto(s) ganhos)"
+
+        return balance, "Sucesso"
         self.repository.deposit(account_id, amount)
 
         earned_points = self._award_bonus_points_for_deposit(account_id, amount)
@@ -89,6 +103,7 @@ class BankService:
             return None, "Saldo insuficiente"
 
         self.repository.withdrawal(account_id, amount)
+        self.repository.withdrawal(account_id, amount)
 
         return self.repository.get_balance(account_id), "Sucesso"
 
@@ -103,6 +118,8 @@ class BankService:
 
         origin_balance = self.repository.get_balance(origin_id)
         if origin_balance is None:
+            return None, None, "Conta de origem inexistente"
+
             return None, None, "Conta de origem inexistente"
 
         destination_balance = self.repository.get_balance(destination_id)
@@ -120,6 +137,7 @@ class BankService:
         if origin_type == SAVINGS_ACCOUNT_TYPE and amount > origin_balance:
             return None, None, "Saldo insuficiente"
 
+        self.repository.withdrawal(origin_id, amount)
         self.repository.withdrawal(origin_id, amount)
         deposit_success = self.repository.deposit(destination_id, amount)
         if not deposit_success:

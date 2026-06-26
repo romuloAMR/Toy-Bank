@@ -12,9 +12,15 @@ from src.domain.account_types import (
 
 class AccountRepository:
     def __init__(self, file_path: str = "data/accounts.csv"):
+    def __init__(self, file_path: str = "data/accounts.csv"):
         """
         Initialise CSV database for accounts
+        Initialise CSV database for accounts
         """
+        self._file_path = Path(file_path)
+
+        if not self._file_path.exists():
+            self._file_path.parent.mkdir(parents=True, exist_ok=True)
         self._file_path = Path(file_path)
 
         if not self._file_path.exists():
@@ -30,7 +36,9 @@ class AccountRepository:
             )
 
             db.to_csv(self._file_path, index=False)
+            db.to_csv(self._file_path, index=False)
 
+        self._db = pd.read_csv(self._file_path)
         self._db = pd.read_csv(self._file_path)
 
         if self._db.empty:
@@ -53,13 +61,17 @@ class AccountRepository:
         )
 
     def _save(self):
+    def _save(self):
         """
         Save DB.
+        Save DB.
         """
+        self._db.to_csv(self._file_path, index=False)
         self._db.to_csv(self._file_path, index=False)
 
     def account_exists(self, account_id: int) -> bool:
         """
+        Check whether or not an account exists
         Check whether or not an account exists
         """
         return bool((self._db["account_id"] == account_id).any())
@@ -71,6 +83,7 @@ class AccountRepository:
         opening_balance: float = 0.0,
     ) -> bool:
         """
+        Create an account on the system
         Create an account on the system
         """
         if self.account_exists(account_id):
@@ -100,15 +113,18 @@ class AccountRepository:
     def get_balance(self, account_id: int) -> float | None:
         """
         Returns the balance of an account
+        Returns the balance of an account
         """
         balance = self._db.loc[self._db["account_id"] == account_id, "balance"].values
         if len(balance) == 0:
             return None
 
+
         return float(balance[0])
 
     def deposit(self, account_id: int, amount: float) -> bool:
         """
+        Deposits the amount into the account.
         Deposits the amount into the account.
         """
         if not self.account_exists(account_id):
