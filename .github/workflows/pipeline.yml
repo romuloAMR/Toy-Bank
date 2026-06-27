@@ -1,0 +1,73 @@
+name: Toy-Bank Workflow
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+      - production
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    env:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/toy-bank
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install Make
+      run: |
+        sudo apt update -y
+        sudo apt install -y make
+
+    - name: Install UV
+      uses: astral-sh/setup-uv@v5
+      with:
+        version: "latest" 
+
+    - name: Install Dependencies
+      run: make install
+
+    - name: Run Static Analysis + Linter + Formatter
+      run: make check
+
+    - name: Run Tests
+      run: make test
+
+    - name: Extract project version
+      id: get_version
+      run: |
+        VERSION=$(uv run python -c "
+        import tomllib
+        with open('pyproject.toml', 'rb') as f:
+            print(tomllib.load(f)['project']['version'])
+        ")
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Extracted version: $VERSION"
+
+    - name: Build Docker Image
+      run: |
+        echo "Building image with version tag: ${{ steps.get_version.outputs.version }}"
+        docker build -t ${{ env.DOCKER_IMAGE }}:${{ steps.get_version.outputs.version }} .
+        docker tag ${{ env.DOCKER_IMAGE }}:${{ steps.get_version.outputs.version }} ${{ env.DOCKER_IMAGE }}:latest
+
+    - name: Push Docker Image to Docker Hub
+      run: |
+        echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ env.DOCKER_USERNAME }}" --password-stdin
+        docker push ${{ env.DOCKER_IMAGE }}:${{ steps.get_version.outputs.version }}
+        docker push ${{ env.DOCKER_IMAGE }}:latest
+
+    - name: Create build tag
+      run: |
+        BRANCH=$(echo "${{ github.ref_name }}" | sed 's/\//-/g')
+        TIMESTAMP=$(date +%Y%m%d%H%M%S)
+        TAG="build-${BRANCH}-${TIMESTAMP}"
+        git config user.name "github-actions"
+        git config user.email "github-actions@github.com"
+        git tag $TAG
+        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} $TAG

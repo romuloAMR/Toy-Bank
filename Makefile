@@ -1,13 +1,28 @@
-PYTHON = uv run python
-SRC = src/main.py
-
-.PHONY: run clean help
+.PHONY: run dev test check clean help install
 
 all: help
 
+## install: Install all project dependencies using uv
+install:
+	uv sync
+
 ## run: Run the project
 run:
-	@$(PYTHON) $(SRC)
+	uv run uvicorn src.main:app
+
+## dev: Run the project in development mode
+dev:
+	uv run uvicorn src.main:app --reload
+
+## test: Run unit tests
+test:
+	uv run pytest tests/ -v
+
+## check: Check all code base
+check:
+	uv run ruff check . --fix
+	uv run ruff format .
+	uv run mypy .
 
 ## clean: Clears the caches for Python, Pytest and Ruff
 clean:
