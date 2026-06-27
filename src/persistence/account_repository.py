@@ -19,7 +19,6 @@ class AccountRepository:
 
         if not self._file_path.exists():
             self._file_path.parent.mkdir(parents=True, exist_ok=True)
-
             db = pd.DataFrame(
                 {
                     "account_id": pd.Series(dtype="int64"),
@@ -28,7 +27,6 @@ class AccountRepository:
                     "points": pd.Series(dtype="int64"),
                 }
             )
-
             db.to_csv(self._file_path, index=False)
 
         self._db = pd.read_csv(self._file_path)
