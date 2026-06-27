@@ -54,9 +54,7 @@ class BankService:
             return None, "Conta inexistente"
 
         self.repository.deposit(account_id, amount)
-
         earned_points = self._award_bonus_points_for_deposit(account_id, amount)
-
         balance = self.repository.get_balance(account_id)
 
         if earned_points > 0:
