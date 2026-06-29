@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+import json
+import os
+import re
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+REPO_OWNER = "romuloAMR"
+REPO_NAME = "Toy-Bank"
+
+if len(sys.argv) != 2:
+    print("Error: Commit message file path not provided.", file=sys.stderr)
+    sys.exit(1)
+
+commit_msg_file = Path(sys.argv[1])
+
+try:
+    lines = commit_msg_file.read_text(encoding="utf-8").splitlines()
+    subject = lines[0].strip() if lines else ""
+except OSError as error:
+    print(f"Error: Could not read commit message: {error}", file=sys.stderr)
+    sys.exit(1)
+
+if subject.startswith(("Merge branch", "Merge remote-tracking branch")):
+    sys.exit(0)
+
+commit_regex = re.compile(
+    r"^#(?P<issue_id>\d+)\s+"
+    r"(?P<type>feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)"
+    r": "
+    r".{1,50}$"
+)
+
+match = commit_regex.fullmatch(subject)
+
+if not match:
+    print("\nError: Invalid commit message format.", file=sys.stderr)
+    print(f'Your message: "{subject}"', file=sys.stderr)
+    print(
+        "\nExpected: #<ISSUE_ID> <TYPE>(<SCOPE>): <MESSAGE>\n"
+        "Example: #42 feat: add login endpoint",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+issue_id = match.group("issue_id")
+url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/issues/{issue_id}"
+
+req = urllib.request.Request(
+    url,
+    headers={
+        "User-Agent": "Toy-Bank-commit-msg-hook",
+        "Accept": "application/vnd.github+json",
+    },
+)
+
+github_token = os.environ.get("GITHUB_TOKEN")
+if github_token:
+    req.add_header("Authorization", f"Bearer {github_token}")
+
+try:
+    with urllib.request.urlopen(req, timeout=5) as response:
+        data = json.loads(response.read().decode("utf-8"))
+
+    if "pull_request" in data:
+        print(f"Error: #{issue_id} is a Pull Request, not an Issue.", file=sys.stderr)
+        sys.exit(1)
+
+    if data.get("state") != "open":
+        print(f"Error: Issue #{issue_id} is closed.", file=sys.stderr)
+        sys.exit(1)
+
+except urllib.error.HTTPError as error:
+    if error.code == 404:
+        print(
+            f"Error: Issue #{issue_id} does not exist in "
+            f"{REPO_OWNER}/{REPO_NAME}.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if error.code == 401:
+        print("Error: GITHUB_TOKEN is invalid or unauthorized.", file=sys.stderr)
+        sys.exit(1)
+
+    if error.code == 403:
+        print(
+            "Warning: GitHub API access denied or rate limited. "
+            "Skipping remote issue validation.",
+            file=sys.stderr,
+        )
+        sys.exit(0)
+
+    print(
+        f"Warning: GitHub API returned HTTP {error.code}. "
+        "Skipping remote issue validation.",
+        file=sys.stderr,
+    )
+    sys.exit(0)
+
+except (urllib.error.URLError, TimeoutError):
+    print(
+        "Warning: GitHub is unreachable. Skipping remote issue validation.",
+        file=sys.stderr,
+    )
+    sys.exit(0)
+
+sys.exit(0)
